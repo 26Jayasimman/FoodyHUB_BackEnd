@@ -1,0 +1,16 @@
+# dependencies
+/node_modules/
+
+# frontend build (copied from frontend)
+build/
+
+# MongoDB backups
+backup/
+
+# environment files
+.env
+
+# misc
+.DS_Store
+.vscode/
+npm-debug.log*
