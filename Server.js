@@ -4,6 +4,9 @@ const cors = require("cors");
 const Razorpay=require('razorpay');
 const path = require("path");
 const app = express();
+const bcrypt=require('bcryptjs')
+const bodyParser=require('body-parser');
+const { type } = require("os");
 require("dotenv").config();
 
 // Middleware
@@ -17,6 +20,14 @@ mongoose
   .catch((err) => console.error("MongoDB connection error:", err));
 
 // Schema & Model
+const UserSchema=new mongoose.Schema({
+  username:{type:String,required:true,unique:true},
+  email:{type:String,required:true,unique:true},
+  password:{type:String,required:true}
+})
+
+const User=mongoose.model('User',UserSchema,'users')
+
 const locationSchema = new mongoose.Schema({
   name: String,
   city_id: Number,
@@ -170,6 +181,34 @@ app.get("/mealtypes", async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
+app.post('/apisignup',async (req,res)=>{
+
+  try {
+    const {username,email,password}=req.body;
+
+    const existingUser=await User.findOne({email})
+    if(existingUser){
+      return res.status(400).json({message:'User Already Exists'})
+    }
+
+    const hashPassword=await bcrypt.hash(password,10)
+
+    const newUser=new User({
+      username,
+      email,
+      password:hashPassword
+    })
+
+    await newUser.save()
+    res.status(201).json({message:'Created Successfully'})
+
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({message:'Server Error'})
+  }
+
+})
 
 app.post("/filter", async (req, res) => {
   try {
