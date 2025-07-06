@@ -1,11 +1,11 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
-const Razorpay=require('razorpay');
+const Razorpay = require("razorpay");
 const path = require("path");
 const app = express();
-const bcrypt=require('bcryptjs')
-const bodyParser=require('body-parser');
+const bcrypt = require("bcryptjs");
+const bodyParser = require("body-parser");
 const { type } = require("os");
 require("dotenv").config();
 
@@ -20,13 +20,13 @@ mongoose
   .catch((err) => console.error("MongoDB connection error:", err));
 
 // Schema & Model
-const UserSchema=new mongoose.Schema({
-  username:{type:String,required:true,unique:true},
-  email:{type:String,required:true,unique:true},
-  password:{type:String,required:true}
-})
+const UserSchema = new mongoose.Schema({
+  username: { type: String, required: true, unique: true },
+  email: { type: String, required: true, unique: true },
+  password: { type: String, required: true },
+});
 
-const User=mongoose.model('User',UserSchema,'users')
+const User = mongoose.model("User", UserSchema, "users");
 
 const locationSchema = new mongoose.Schema({
   name: String,
@@ -77,53 +77,45 @@ const menufileSchema = new mongoose.Schema({
 
 const Menufile = mongoose.model("menufile", menufileSchema, "menufile");
 
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_KEY_SECRET,
+});
 
-const razorpay=new Razorpay({
-  key_id:process.env.RAZORPAY_KEY_ID,
-  key_secret:process.env.RAZORPAY_KEY_SECRET,
-})
-
-app.post('/create-order',async (req,res)=>{
-
-  const {amount}=req.body;
+app.post("/create-order", async (req, res) => {
+  const { amount } = req.body;
   console.log(amount);
-  
 
-  const options={
-    amount:req.body.amount*100,
-    currency:"INR",
-    receipt:`order_${Date.now()}`,
-  }
+  const options = {
+    amount: req.body.amount * 100,
+    currency: "INR",
+    receipt: `order_${Date.now()}`,
+  };
 
   try {
-    const order=await razorpay.orders.create(options)
-    res.json(order)
-    
+    const order = await razorpay.orders.create(options);
+    res.json(order);
   } catch (error) {
     console.log(error);
-    res.status(500).json('Failed')
+    res.status(500).json("Failed");
   }
-  
-})
+});
 
-app.get('/menufile/:restaurant_id', async (req,res)=>{
-  
+app.get("/menufile/:restaurant_id", async (req, res) => {
   try {
-    const {restaurant_id}=req.params;
-     const menus= await Menufile.find({restaurant_id:restaurant_id})
+    const { restaurant_id } = req.params;
+    const menus = await Menufile.find({ restaurant_id: restaurant_id });
 
-     if(!menus || menus.length===0){
-      return res.status(404).json({error:'No menu Found'})
-     }
+    if (!menus || menus.length === 0) {
+      return res.status(404).json({ error: "No menu Found" });
+    }
 
-     res.json({menufile:menus})
-  
+    res.json({ menufile: menus });
   } catch (error) {
     console.log(error);
-    res.status(500).json({error:'Internal Server Error'})
+    res.status(500).json({ error: "Internal Server Error" });
   }
-
-})
+});
 
 // Get restaurants by location_id (list)
 app.get("/restaurant/:location_id", async (req, res) => {
@@ -182,32 +174,53 @@ app.get("/mealtypes", async (req, res) => {
   }
 });
 
-app.post('/apisignup',async (req,res)=>{
-
+app.post("/apisignup", async (req, res) => {
   try {
-    const {username,email,password}=req.body;
+    const { username, email, password } = req.body;
 
-    const existingUser=await User.findOne({email})
-    if(existingUser){
-      return res.status(400).json({message:'User Already Exists'})
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: "User Already Exists" });
     }
 
-    const hashPassword=await bcrypt.hash(password,10)
+    const hashPassword = await bcrypt.hash(password, 10);
 
-    const newUser=new User({
+    const newUser = new User({
       username,
       email,
-      password:hashPassword
-    })
+      password: hashPassword,
+    });
 
-    await newUser.save()
-    res.status(201).json({message:'Created Successfully'})
+    await newUser.save();
+    res.status(201).json({ message: "Created Successfully" });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "Server Error" });
+  }
+});
 
+app.post('/apilogin',async (req,res)=>{
+  try {
+    const {email,password}=req.body;
+
+  const user=await User.findOne({email})
+
+  if(!user){
+    res.status(400).json({message:'No Email Credentials'})
+  }
+
+  const isMatch=await bcrypt.compare(password,user.password)
+
+  if(!isMatch){
+     res.status(400).json({message:'Enter Valid Password'})
+  }
+
+  res.status(200).json({message:'Login Successfully!'})
+    
   } catch (error) {
     console.log(error);
     res.status(500).json({message:'Server Error'})
   }
-
 })
 
 app.post("/filter", async (req, res) => {
@@ -269,10 +282,7 @@ app.post("/filter", async (req, res) => {
   }
 });
 
-
 // Serve React build (AFTER all API routes)
-
-
 
 // Start server
 const PORT = process.env.PORT || 3000;
